@@ -1,4 +1,4 @@
 export default interface ConsumerProps {
-    context?: any,
-    [key: string]: any,
+  context?: any;
+  [key: string]: any;
 }
