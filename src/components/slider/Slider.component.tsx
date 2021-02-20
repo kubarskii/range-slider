@@ -1,5 +1,6 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import './temp.css';
+import {removeSuffix} from "../../helpers/suffix.helper";
 
 export default function Slider(props) {
 
@@ -8,15 +9,17 @@ export default function Slider(props) {
     const sliderRef = useRef<HTMLDivElement>(null);
     const fillRef = useRef<HTMLDivElement>(null);
 
+    const [isInputFocused, setInputFocused] = useState(false);
+
     const {values, methods} = props;
     const {updateValue} = methods;
-    const {value, postfix} = values;
+    const {value, suffix} = values;
 
     const fillAddWidth = 2;
     const maxValue = 100;
     const minValue = 0;
 
-    let inputValue: string = ''
+    let inputValue: string = '';
     let shiftX: number = 0;
 
     useEffect((): any => {
@@ -68,33 +71,43 @@ export default function Slider(props) {
         }
     }
 
-    const updateValueMask = (event) => {
+    const prepareAndUpdateValue = (event) => {
         const {target: {value}, nativeEvent: {data}} = event;
-        if (typeof parseFloat(value) === 'number') {
-            if (value === "") {
-                updateValue("")
-            } else if (value <= maxValue && value >= minValue) {
-                const str = value.toString();
+        console.log(event);
+        let currVal = removeSuffix(value, suffix);
+        if (typeof parseFloat(currVal) === 'number') {
+            if (currVal === '') {
+                updateValue('')
+            } else if (currVal <= maxValue && currVal >= minValue) {
+                const str = currVal.toString();
                 const reg = new RegExp(/(.*)\.\d\d\d/);
-                if (!reg.test(str)) {
-                    updateValue(value)
+                if (!reg.test(str) && !(value.length && value[0] === '0' && value[1] !== '.')) {
+                    updateValue(currVal)
                 }
-            } else if (value > maxValue) {
+            } else if (currVal > maxValue) {
                 updateValue(maxValue.toFixed(2))
-            } else if (value < minValue) {
+            } else if (currVal < minValue) {
                 updateValue(minValue.toFixed(2))
             }
+
         }
+    }
+
+    const handleInputBlur = (event) => {
+        setInputFocused(false);
+        const {target: {value}} = event;
+        let currVal = parseFloat(removeSuffix(value || 0, suffix));
+        updateValue(currVal.toFixed(2))
     }
 
     return (
         <div className="flex">
             <div
-                className="flex m-auto box-border rounded-2xl border border-gray-200 dark:bg-gray-800 dark:border-gray-400"
-                style={{width: '286px', padding: '35px 30px', boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.1)'}}
+                className="flex w-286px m-auto box-border rounded-2xl border border-gray-200 dark:bg-gray-800 dark:border-gray-400"
+                style={{padding: '35px 30px', boxShadow: '0px 0px 10px rgba(0, 0, 0, 0.1)'}}
             >
                 <div
-                    className="slider flex-shrink-0 my-auto bg-gray-200 cursor-pointer m-r-22px"
+                    className="slider flex-shrink-0 my-auto bg-gray-200 m-r-22px"
                     onClick={handleSliderClick}
                     ref={sliderRef}
                 >
@@ -106,7 +119,7 @@ export default function Slider(props) {
                         <div
                             onMouseDown={thumbOnMouseDown}
                             onDragStart={() => false}
-                            className="thumb bg-white border rounded border-blue-600 z-50"
+                            className="thumb relative cursor-pointer bg-white border rounded border-blue-600 z-50"
                             ref={thumbRef}
                         />
                     </div>
@@ -128,15 +141,17 @@ export default function Slider(props) {
                         />
                     </div>
                 </div>
-                <div className="flex box-border p-2 w-15 border border-gray-200 dark:border-gray-400 rounded-lg">
-                    <input
-                        className="bg-transparent text-xs w-full m-auto h-18px outline-none"
-                        type="text"
-                        ref={inputRef}
-                        value={value}
-                        onChange={(e) => updateValueMask(e)}
-                        onBlur={(e) => updateValue(parseFloat(value).toFixed(2))}
-                    />
+                <div className="flex box-border w-15 border border-gray-200 dark:border-gray-400 rounded-lg">
+                    <div className="flex m-auto pt-2 pb-2 pl-2" style={{width: '62px', height: '36px'}}>
+                        <input
+                            className="bg-transparent min-w-0 w-auto text-xs my-auto h-18px outline-none"
+                            type="text"
+                            ref={inputRef}
+                            value={value + ((value) ? suffix : '')}
+                            onChange={prepareAndUpdateValue}
+                            onBlur={handleInputBlur}
+                        />
+                    </div>
                 </div>
             </div>
 

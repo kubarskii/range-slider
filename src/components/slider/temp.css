@@ -5,10 +5,8 @@
 }
 
 .thumb {
-    position: relative;
     width: 6px;
     height: 6px;
-    cursor: pointer;
     top: -2px;
 }
 

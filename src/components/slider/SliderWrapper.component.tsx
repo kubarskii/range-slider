@@ -31,7 +31,7 @@ class SliderWrapper extends Component<ConsumerProps, {}> {
                     <Slider
                         values={{
                             ...this.state,
-                            postfix: '%',
+                            suffix: '%',
                         }}
                         methods={{
                             updateValue: this.updateValue,
