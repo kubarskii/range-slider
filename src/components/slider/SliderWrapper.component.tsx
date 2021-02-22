@@ -6,13 +6,13 @@ import Slider from "./Slider.component";
 import {BindMethod} from "../../decorators/bindMethod.decorator";
 
 @Consumer
-class SliderWrapper extends Component<ConsumerProps, {}> {
+class SliderWrapper extends Component<ConsumerProps> {
     constructor(props: ConsumerProps) {
         super(props);
     }
 
-    state = {
-        value: (0).toFixed(2),
+    state: { value: string } = {
+        value: '',
     }
 
 
@@ -31,7 +31,11 @@ class SliderWrapper extends Component<ConsumerProps, {}> {
                     <Slider
                         values={{
                             ...this.state,
+                            maxValue: 100,
+                            minValue: 0,
+                            defaultValue: 50,
                             suffix: '%',
+                            toFixed: 2,
                         }}
                         methods={{
                             updateValue: this.updateValue,

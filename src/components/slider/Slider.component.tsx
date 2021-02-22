@@ -1,6 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
 import './temp.css';
-import {removeSuffix} from "../../helpers/suffix.helper";
 
 export default function Slider(props) {
 
@@ -13,21 +12,30 @@ export default function Slider(props) {
 
     const {values, methods} = props;
     const {updateValue} = methods;
-    const {value, suffix} = values;
+    const {value, maxValue, minValue, suffix, toFixed, defaultValue} = values;
 
-    const fillAddWidth = 2;
-    const maxValue = 100;
-    const minValue = 0;
+    const fillAddWidth: number = 2;
 
     let inputValue: string = '';
     let shiftX: number = 0;
 
     useEffect((): any => {
-        if (fillRef && fillRef.current && thumbRef && thumbRef.current && sliderRef && sliderRef.current) {
+        if (inputRef && inputRef.current && fillRef && fillRef.current && thumbRef && thumbRef.current && sliderRef && sliderRef.current) {
+            const valueNumber: number = (value) ? parseFloat(value) : 0.00;
             const rightEdge = sliderRef.current.offsetWidth - thumbRef.current.offsetWidth;
-            const offset = rightEdge * value / 100;
+            const pxInUnit = rightEdge / (Math.abs(minValue) + Math.abs(maxValue));
+            const offset = (valueNumber - minValue) * pxInUnit;
+
             thumbRef.current.style.left = offset + 'px';
             fillRef.current.style.width = offset + fillAddWidth + 'px';
+
+            if (!value && !isInputFocused) {
+                const nVal = defaultValue.toFixed(toFixed).toString().concat(suffix);
+                inputRef.current.value = nVal;
+                updateValue(nVal);
+            } else {
+                inputRef.current.value = value
+            }
         }
     });
 
@@ -44,7 +52,8 @@ export default function Slider(props) {
             if (newLeft > rightEdge) {
                 newLeft = rightEdge;
             }
-            inputValue = (newLeft / rightEdge * 100).toFixed(2);
+            const a = (Math.abs(minValue) + maxValue) * (newLeft / rightEdge) + minValue;
+            inputValue = a.toFixed(toFixed).concat(suffix);
             updateValue(inputValue);
         }
     }
@@ -67,37 +76,61 @@ export default function Slider(props) {
         if (sliderRef && sliderRef.current) {
             const shift = event.clientX - sliderRef.current.getBoundingClientRect().left;
             const rightEdge = sliderRef.current.offsetWidth
-            updateValue((shift / rightEdge * 100).toFixed(2))
+            const pxInUnit = rightEdge / (Math.abs(minValue) + Math.abs(maxValue));
+            updateValue((shift / pxInUnit + minValue).toFixed(toFixed).concat(suffix))
         }
     }
 
-    const prepareAndUpdateValue = (event) => {
-        const {target: {value}, nativeEvent: {data}} = event;
-        console.log(event);
-        let currVal = removeSuffix(value, suffix);
-        if (typeof parseFloat(currVal) === 'number') {
-            if (currVal === '') {
-                updateValue('')
-            } else if (currVal <= maxValue && currVal >= minValue) {
-                const str = currVal.toString();
-                const reg = new RegExp(/(.*)\.\d\d\d/);
-                if (!reg.test(str) && !(value.length && value[0] === '0' && value[1] !== '.')) {
-                    updateValue(currVal)
-                }
-            } else if (currVal > maxValue) {
-                updateValue(maxValue.toFixed(2))
-            } else if (currVal < minValue) {
-                updateValue(minValue.toFixed(2))
-            }
-
+    const prepareAndUpdateValue = (v: string): string => {
+        let value = (v !== suffix && v !== '') ?
+            v.replace(suffix, '')
+                .replace(/(^\b0+(?=[1-9]\d*)|(?<=\W\d{2}).*)/, '')
+                .replace(/^\./, '0.')
+                .substr(0, 6)
+                .concat(suffix) : '';
+        const fpValue = parseFloat(value);
+        if (!isNaN(fpValue) && fpValue > maxValue) {
+            value = maxValue.toFixed(toFixed).toString().concat(suffix)
+        } else if (!isNaN(fpValue) && fpValue < minValue) {
+            value = minValue.toFixed(toFixed).toString().concat(suffix)
         }
+        updateValue(value);
+        return value
     }
 
-    const handleInputBlur = (event) => {
-        setInputFocused(false);
-        const {target: {value}} = event;
-        let currVal = parseFloat(removeSuffix(value || 0, suffix));
-        updateValue(currVal.toFixed(2))
+    const handleInputChange = (e) => {
+        const {target: {value}} = e;
+        e.target.value = prepareAndUpdateValue(value);
+    }
+
+    const handleKeydown = (e) => {
+
+        const {value, selectionStart} = e.target;
+        if (selectionStart === value.length && value[value.length - 1] === suffix) {
+            changeCursorPosition(e, value.length - 1);
+            return;
+        }
+
+    }
+
+    const handleInputBlur = (e) => {
+        prepareAndUpdateValue(parseFloat(value || '0').toFixed(toFixed).toString());
+        setInputFocused(false)
+    }
+
+    const changeCursorPosition = (e, start: number, end?: number) => {
+        if (!end) end = start;
+        e.target.selectionStart = start;
+        e.target.selectionEnd = end;
+    }
+
+    const normalizeValue = (value) => {
+        if (sliderRef && sliderRef.current && thumbRef && thumbRef.current) {
+            const valueNumber: number = (value) ? parseFloat(value) : 0;
+            const sum = Math.abs(minValue) + Math.abs(maxValue);
+            return (valueNumber - minValue) / sum * 100;
+        }
+        return 0;
     }
 
     return (
@@ -125,19 +158,19 @@ export default function Slider(props) {
                     </div>
                     <div className="dots flex justify-between">
                         <div
-                            className={`w-6px h-6px relative rounded-full -top-2 ${(value > 0) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
+                            className={`w-6px h-6px relative rounded-full -top-2 ${(normalizeValue(value) > minValue) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
                         />
                         <div
-                            className={`w-6px h-6px relative rounded-full -top-2 ${(value > 25) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
+                            className={`w-6px h-6px relative rounded-full -top-2 ${(normalizeValue(value) > 25) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
                         />
                         <div
-                            className={`w-6px h-6px relative rounded-full -top-2 ${(value > 50) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
+                            className={`w-6px h-6px relative rounded-full -top-2 ${(normalizeValue(value) > 50) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
                         />
                         <div
-                            className={`w-6px h-6px relative rounded-full -top-2 ${(value > 75) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
+                            className={`w-6px h-6px relative rounded-full -top-2 ${(normalizeValue(value) > 75) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
                         />
                         <div
-                            className={`w-6px h-6px relative rounded-full -top-2 ${(value > 99) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
+                            className={`w-6px h-6px relative rounded-full -top-2 ${(normalizeValue(value) > 99.9) ? 'bg-blue-600' : 'bg-gray-200 dark:bg-white'}`}
                         />
                     </div>
                 </div>
@@ -147,8 +180,9 @@ export default function Slider(props) {
                             className="bg-transparent min-w-0 w-auto text-xs my-auto h-18px outline-none"
                             type="text"
                             ref={inputRef}
-                            value={value + ((value) ? suffix : '')}
-                            onChange={prepareAndUpdateValue}
+                            onKeyUp={handleInputChange}
+                            onKeyDown={handleKeydown}
+                            onFocus={_ => setInputFocused(true)}
                             onBlur={handleInputBlur}
                         />
                     </div>
